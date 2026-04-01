@@ -1,0 +1,5 @@
+flask
+yfinance
+requests
+pandas
+chartjs-chart-financial

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stop Loss Pro – Candlestick</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .card { border:1px solid #ccc; padding:10px; margin:10px;}
+    </style>
+</head>
+<body>
+<h1> Stop Loss Pro Dashboard</h1>
+<input type="text" id="tickerInput" placeholder="Skriv ticker, t.ex. VOLV-B.ST">
+<button onclick="loadCandlestick()">Visa graf</button>
+<button onclick="loadTrending()"> Heta aktier</button>
+
+<div id="portfolio"></div>
+<canvas id="candlestickChart" width="800" height="400"></canvas>
+<canvas id="rsiChart" width="800" height="100"></canvas>
+
+<script>
+let candlestickChart, rsiChart;
+
+async function loadTrending() {
+    await fetch("/trending");
+    alert("Heta aktier tillagda!");
+    loadPortfolio();
+}
+
+async function loadPortfolio() {
+    let res = await fetch("/portfolio");
+    let data = await res.json();
+    let html="";
+    data.forEach(s=>{
+        html+=`<div class="card">${s.ticker} | Pris: ${s.price.toFixed(2)} | Stop: ${s.stop.toFixed(2)}</div>`;
+    });
+    document.getElementById("portfolio").innerHTML=html;
+}
+
+async function loadCandlestick() {
+    const ticker = document.getElementById("tickerInput").value.toUpperCase();
+    if(!ticker) return alert("Skriv en ticker!");
+    const res = await fetch(`/candlestick/${ticker}`);
+    const data = await res.json();
+
+    const stopLoss = data.close.map(c=>c*0.95);
+    const candlestickData = data.date.map((d,i)=>{
+        return {
+            x: d,
+            o: data.open[i],
+            h: data.high[i],
+            l: data.low[i],
+            c: data.close[i],
+            backgroundColor: data.close[i] <= stopLoss[i]*1.02 ? 'red' : 'green'
+        };
+    });
+
+    const ctx = document.getElementById("candlestickChart").getContext("2d");
+    if(candlestickChart) candlestickChart.destroy();
+    candlestickChart = new Chart(ctx, {
+        type: 'candlestick',
+        data: {
+            datasets: [{
+                label: ticker,
+                data: candlestickData
+            },{
+                type:'line',
+                label:'EMA10',
+                data:data.close.map((v,i)=>({x:data.date[i],y:data.EMA10[i]})),
+                borderColor:'blue', borderWidth:1, pointRadius:0
+            },{
+                type:'line',
+                label:'EMA20',
+                data:data.close.map((v,i)=>({x:data.date[i],y:data.EMA20[i]})),
+                borderColor:'red', borderWidth:1, pointRadius:0
+            },{
+                type:'line',
+                label:'Stop Loss',
+                data:data.close.map((v,i)=>({x:data.date[i],y:stopLoss[i]})),
+                borderColor:'orange', borderWidth:1, borderDash:[5,5], pointRadius:0
+            }]
+        },
+        options:{responsive:true, plugins:{legend:{display:true}}}
+    });
+
+    const rsiCtx = document.getElementById("rsiChart").getContext("2d");
+    if(rsiChart) rsiChart.destroy();
+    rsiChart = new Chart(rsiCtx, {
+        type:'line',
+        data:{labels:data.date,datasets:[{label:'RSI',data:data.RSI,borderColor:'green',borderWidth:1,pointRadius:0}]},
+        options:{responsive:true, plugins:{legend:{display:true}}, scales:{y:{min:0,max:100}}}
+    });
+}
+
+setInterval(loadPortfolio,5000);
+</script>
+</body>
+</html>

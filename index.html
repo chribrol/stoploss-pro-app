@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StopLoss Pro</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --border: #374151;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #0b1220, #111827);
+      color: var(--text);
+      font-family: Inter, Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 32px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn, .input, .select {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+
+    .btn {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      filter: brightness(1.08);
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stock-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .stock-card {
+      background: #0b1320;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .stock-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .ticker {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ok { background: rgba(34,197,94,0.15); color: #86efac; }
+    .warning { background: rgba(245,158,11,0.15); color: #fcd34d; }
+    .hit { background: rgba(239,68,68,0.15); color: #fca5a5; }
+
+    .stock-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .stock-meta strong {
+      display: block;
+      color: var(--text);
+      margin-top: 4px;
+      font-size: 14px;
+    }
+
+    .small-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .chart-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    #statusBar {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .canvas-wrap {
+      background: #07101d;
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid #243244;
+      margin-top: 12px;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-width: 100%;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>StopLoss Pro</h1>
+        <div class="subtitle">Enkel stop-loss-bevakning med larm, heta aktier och tydlig dashboard</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" onclick="loadPortfolio()">Uppdatera</button>
+        <button class="btn primary" onclick="loadTrending()">Heta aktier</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <h2>Lägg till aktie</h2>
+        <div class="form-grid">
+          <input class="input" id="tickerInput" placeholder="Ticker, t.ex. VOLV-B.ST eller NVDA" />
+          <input class="input" id="trailingInput" type="number" step="0.01" min="0.01" max="0.49" value="0.05" />
+          <input class="input" id="noteInput" placeholder="Anteckning (valfritt)" />
+          <button class="btn primary" onclick="addStock()">Lägg till i bevakning</button>
+        </div>
+
+        <div id="statusBar">Redo.</div>
+
+        <hr style="border-color:#243244; margin:18px 0;">
+
+        <h2>Bevakning</h2>
+        <div id="portfolio" class="stock-list"></div>
+      </div>
+
+      <div class="panel">
+        <div class="chart-header">
+          <div>
+            <h2 style="margin-bottom:4px;">Graf</h2>
+            <div class="muted">Candlestick + EMA10 + EMA20 + enkel stop-linje + RSI</div>
+          </div>
+          <div class="chart-actions">
+            <input class="input" id="chartTickerInput" placeholder="Ticker för graf" />
+            <button class="btn" onclick="loadChart()">Visa graf</button>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="candlestickChart" height="360"></canvas>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="rsiChart" height="140"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let candlestickChart = null;
+    let rsiChart = null;
+
+    function setStatus(msg) {
+      document.getElementById("statusBar").innerText = msg;
+    }
+
+    function statusBadge(status) {
+      if (status === "TRÄFFAD") return "badge hit";
+      if (status === "VARNING") return "badge warning";
+      return "badge ok";
+    }
+
+    async function loadPortfolio() {
+      try {
+        setStatus("Hämtar portfölj...");
+        const res = await fetch("/portfolio");
+        const data = await res.json();
+
+        const portfolio = document.getElementById("portfolio");
+
+        if (!data.length) {
+          portfolio.innerHTML = `<div class="muted">Inga aktier i bevakningen ännu.</div>`;
+          setStatus("Inga aktier hittades.");
+          return;
+        }
+
+        portfolio.innerHTML = data.map(stock => `
+          <div class="stock-card">
+            <div class="stock-top">
+              <div class="ticker">${stock.ticker}</div>
+              <div class="${statusBadge(stock.status)}">${stock.status}</div>
+            </div>
+
+            <div class="stock-meta">
+              <div>Senaste pris<strong>${stock.last_price ?? "-"}</strong></div>
+              <div>Stop-loss<strong>${stock.stop_price}</strong></div>
+              <div>Köppris<strong>${stock.buy_price}</strong></div>
+              <div>Högsta pris<strong>${stock.highest_price}</strong></div>
+              <div>Trailing %<strong>${stock.trailing_percent}%</strong></div>
+              <div>Anteckning<strong>${stock.note || "-"}</strong></div>
+            </div>
+
+            <div class="small-actions">
+              <button class="btn" onclick="quickChart('${stock.ticker}')">Visa graf</button>
+              <button class="btn" onclick="deleteStock(${stock.id})">Ta bort</button>
+            </div>
+          </div>
+        `).join("");
+
+        setStatus("Portfölj uppdaterad.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Fel vid hämtning av portfölj.");
+      }
+    }
+
+    async function addStock() {
+      try {
+        const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+        const trailing = parseFloat(document.getElementById("trailingInput").value);
+        const note = document.getElementById("noteInput").value.trim();
+
+        if (!ticker) {
+          alert("Skriv en ticker.");
+          return;
+        }
+
+        setStatus(`Lägger till ${ticker}...`);
+
+        const res = await fetch("/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticker: ticker,
+            trailing_percent: trailing,
+            note: note
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Kunde inte lägga till aktien.");
+        }
+
+        setStatus(`${ticker} tillagd.`);
+        document.getElementById("tickerInput").value = "";
+        document.getElementById("noteInput").value = "";
+        await loadPortfolio();
+      } catch (err) {
+        console.error(err);
+        setStatus("Fel vid tillägg.");
+        alert(err.message);
+      }
+    }
+
+    async function deleteStock(id) {
+      if (!confirm("Vill du ta bort aktien från bevakningen?")) return;
+
+      try {
+        await fetch(`/delete/${id}`, { method: "DELETE" });
+        await loadPortfolio();
+      } catch (err) {
+        console.error(err);
+        setStatus("Fel vid borttagning.");
+      }
+    }
+
+    async function loadTrending() {
+      try {
+        setStatus("Letar heta aktier...");
+        const res = await fetch("/trending");
+        const data = await res.json();
+        setStatus(`${data.count} heta aktier behandlade.`);
+        await loadPortfolio();
+      } catch (err) {
+        console.error(err);
+        setStatus("Fel vid heta aktier.");
+      }
+    }
+
+    function quickChart(ticker) {
+      document.getElementById("chartTickerInput").value = ticker;
+      loadChart();
+    }
+
+    async function loadChart() {
+      try {
+        const ticker = document.getElementById("chartTickerInput").value.trim().toUpperCase();
+        if (!ticker) {
+          alert("Skriv en ticker för grafen.");
+          return;
+        }
+
+        setStatus(`Laddar graf för ${ticker}...`);
+
+        const res = await fetch(`/candlestick/${encodeURIComponent(ticker)}`);
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          throw new Error(data.error || "Fel vid grafhämtning.");
+        }
+
+        const candleData = data.date.map((d, i) => ({
+          x: new Date(d),
+          o: data.open[i],
+          h: data.high[i],
+          l: data.low[i],
+          c: data.close[i]
+        }));
+
+        const ema10 = data.date.map((d, i) => ({ x: new Date(d), y: data.ema10[i] }));
+        const ema20 = data.date.map((d, i) => ({ x: new Date(d), y: data.ema20[i] }));
+        const stopLine = data.date.map((d, i) => ({ x: new Date(d), y: data.stop_line[i] }));
+        const rsi = data.date.map((d, i) => ({ x: new Date(d), y: data.rsi[i] }));
+
+        const ctx = document.getElementById("candlestickChart").getContext("2d");
+        if (candlestickChart) candlestickChart.destroy();
+
+        candlestickChart = new Chart(ctx, {
+          type: "candlestick",
+          data: {
+            datasets: [
+              {
+                label: data.ticker,
+                data: candleData
+              },
+              {
+                type: "line",
+                label: "EMA10",
+                data: ema10,
+                borderColor: "#3b82f6",
+                borderWidth: 1.2,
+                pointRadius: 0
+              },
+              {
+                type: "line",
+                label: "EMA20",
+                data: ema20,
+                borderColor: "#ef4444",
+                borderWidth: 1.2,
+                pointRadius: 0
+              },
+              {
+                type: "line",
+                label: "Stop-linje",
+                data: stopLine,
+                borderColor: "#f59e0b",
+                borderWidth: 1.2,
+                borderDash: [6, 4],
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            parsing: false,
+            plugins: {
+              legend: {
+                labels: { color: "#e5e7eb" }
+              }
+            },
+            scales: {
+              x: {
+                type: "time",
+                ticks: { color: "#9ca3af" },
+                grid: { color: "#243244" }
+              },
+              y: {
+                ticks: { color: "#9ca3af" },
+                grid: { color: "#243244" }
+              }
+            }
+          }
+        });
+
+        const rsiCtx = document.getElementById("rsiChart").getContext("2d");
+        if (rsiChart) rsiChart.destroy();
+
+        rsiChart = new Chart(rsiCtx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "RSI",
+                data: rsi,
+                borderColor: "#22c55e",
+                borderWidth: 1.2,
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            parsing: false,
+            plugins: {
+              legend: {
+                labels: { color: "#e5e7eb" }
+              }
+            },
+            scales: {
+              x: {
+                type: "time",
+                ticks: { color: "#9ca3af" },
+                grid: { color: "#243244" }
+              },
+              y: {
+                min: 0,
+                max: 100,
+                ticks: { color: "#9ca3af" },
+                grid: { color: "#243244" }
+              }
+            }
+          }
+        });
+
+        setStatus(`Graf laddad för ${ticker}.`);
+      } catch (err) {
+        console.error(err);
+        setStatus("Fel vid grafhämtning.");
+        alert(err.message);
+      }
+    }
+
+    loadPortfolio();
+    setInterval(loadPortfolio, 30000);
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-flask
-yfinance
-requests
-pandas
-chartjs-chart-financial
+Flask==3.1.0
+yfinance==0.2.54
+pandas==2.2.3
+requests==2.32.3
+gunicorn==23.0.0
